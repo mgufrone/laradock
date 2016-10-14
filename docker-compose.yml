@@ -8,12 +8,7 @@ services:
         build:
             context: ./workspace
             args:
-                - INSTALL_XDEBUG=false
-                - INSTALL_MONGO=false
-                - INSTALL_NODE=false
-                - INSTALL_YARN=false
-                - INSTALL_DRUSH=false
-                - INSTALL_AEROSPIKE_EXTENSION=false
+                - INSTALL_NODE=true
                 - COMPOSER_GLOBAL_INSTALL=false
                 - INSTALL_WORKSPACE_SSH=false
                 - PUID=1000
@@ -30,6 +25,13 @@ services:
         tty: true
 
 ### PHP-FPM Container #######################################
+
+    redis:
+        build: ./redis
+        volumes_from:
+            - volumes_data
+        ports:
+            - "6379:6379"
 
     php-fpm:
         build:
@@ -72,50 +74,6 @@ services:
         links:
             - php-fpm
 
-### Apache Server Container ##################################
-
-    apache2:
-        build:
-            context: ./apache2
-            args:
-                - PHP_SOCKET="php-fpm:9000"
-        volumes_from:
-            - volumes_source
-        volumes:
-            - ./logs/apache2:/var/log/apache2
-        ports:
-            - "80:80"
-            - "443:443"
-        links:
-            - php-fpm
-
-### HHVM Container ##########################################
-
-    hhvm:
-        build: ./hhvm
-        volumes_from:
-            - volumes_source
-        expose:
-            - "9000"
-        links:
-            - workspace
-
-### MySQL Container #########################################
-
-    mysql:
-        build: ./mysql
-        volumes_from:
-            - volumes_data
-        ports:
-            - "3306:3306"
-        environment:
-            MYSQL_DATABASE: homestead
-            MYSQL_USER: homestead
-            MYSQL_PASSWORD: secret
-            MYSQL_ROOT_PASSWORD: root
-
-### MariaDB Container #######################################
-
     mariadb:
         build: ./mariadb
         volumes_from:
@@ -127,42 +85,12 @@ services:
             MYSQL_USER: homestead
             MYSQL_PASSWORD: secret
             MYSQL_ROOT_PASSWORD: root
+### Laravel Application Code Container ######################
 
-### PostgreSQL Container ####################################
-
-    postgres:
-        build: ./postgres
-        volumes_from:
-            - volumes_data
-        ports:
-            - "5432:5432"
-        environment:
-            POSTGRES_DB: homestead
-            POSTGRES_USER: homestead
-            POSTGRES_PASSWORD: secret
-
-### Neo4j Container #########################################
-
-    neo4j:
-        build: ./neo4j
-        ports:
-            - "7474:7474"
-            - "1337:1337"
-        environment:
-            - NEO4J_AUTH=homestead:secret
-        volumes_from:
-            - volumes_data
-
-### MongoDB Container #######################################
-
-    mongo:
-        build: ./mongo
-        ports:
-            - "27017:27017"
-        volumes_from:
-            - volumes_data
-
-### Redis Container #########################################
+    volumes_source:
+        image: tianon/true
+        volumes:
+            - ./apps:/var/www
 
     redis:
         build: ./redis
@@ -171,143 +99,13 @@ services:
         ports:
             - "6379:6379"
 
-### Aerospike c Container #########################################
-
-    aerospike:
-        build: ./aerospike
-        volumes_from:
-            - workspace
-            - volumes_data
-        ports:
-            - "3000:3000"
-            - "3001:3001"
-            - "3002:3002"
-            - "3003:3003"
-
-
-### Memcached Container #####################################
-
-    memcached:
-        build: ./memcached
-        volumes_from:
-            - volumes_data
-        ports:
-            - "11211:11211"
-        links:
-            - php-fpm
-
-### Beanstalkd Container ####################################
-
-    beanstalkd:
-        build: ./beanstalkd
-        ports:
-            - "11300:11300"
-        privileged: true
-        links:
-            - php-fpm
-
-### RabbitMQ Container ####################################
-
-    rabbitmq:
-        build: ./rabbitmq
-        ports:
-            - "5672:5672"
-            - "15671:15671"
-            - "8080:15672"
-        privileged: true
-        environment:
-            RABBITMQ_DEFAULT_USER: guest
-            RABBITMQ_DEFAULT_PASS: guest
-        links:
-            - php-fpm
-
-### Beanstalkd Console Container ############################
-
-    beanstalkd-console:
-        build: ./beanstalkd-console
-        ports:
-            - "2080:2080"
-        links:
-            - beanstalkd
-
-### Caddy Server Container ##################################
-
-    caddy:
-        build: ./caddy
-        volumes_from:
-            - volumes_source
-            - volumes_data
-        ports:
-            - "80:80"
-            - "443:443"
-            - "2015:2015"
-        volumes:
-            - ./caddy/Caddyfile:/etc/Caddyfile
-            - ./logs/caddy:/var/log/caddy
-        links:
-            - php-fpm
-
-### phpMyAdmin Container ##################################
-
-    phpmyadmin:
-        build: ./phpmyadmin
-        environment:
-            PMA_ARBITRARY: 1
-            MYSQL_USER: homestead
-            MYSQL_PASSWORD: secret
-            MYSQL_ROOT_PASSWORD: root
-        volumes_from:
-            - volumes_data
-        ports:
-            - "8080:80"
-        links:
-            # for mysql container
-            - "mysql:db"
-            # for mariadb container
-            # - "mariadb:db"
-
-### pgAdmin Container ##################################
-
-    pgadmin:
-        build: ./pgadmin
-        ports:
-            - "5050:5050"
-        links:
-            - postgres
-
-### ElasticSearch Container ##################################
-
-    elasticsearch:
-        build: ./elasticsearch
-        volumes_from:
-            - volumes_data
-        ports:
-            - "9200:9200"
-            - "9300:9300"
-        links:
-            - php-fpm
-
-### Laravel Application Code Container ######################
-
-    volumes_source:
-        image: tianon/true
-        volumes:
-            - ../:/var/www/laravel
-
 ### Databases Data Container ################################
 
     volumes_data:
         image: tianon/true
         volumes:
             - ./data/mysql:/var/lib/mysql
-            - ./data/postgres:/var/lib/postgresql/data
-            - ./data/memcached:/var/lib/memcached
             - ./data/redis:/data
-            - ./data/neo4j:/var/lib/neo4j/data
-            - ./data/mongo:/data/db
-            - ./data/aerospike:/opt/aerospike/data
             - ./data/sessions:/sessions
-            - ./data/caddy:/root/.caddy
-            - ./data/elasticsearch/data:/usr/share/elasticsearch/data
 
 ### Add more Containers below ###############################
